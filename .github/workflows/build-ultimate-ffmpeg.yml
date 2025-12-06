@@ -41,7 +41,6 @@ jobs:
     - name: Install prebuilt dependencies (Core)
       shell: msys2 {0}
       run: |
-        # 核心编解码器和工具（使用分组安装提升速度）
         pacman -S --noconfirm --needed \
           mingw-w64-x86_64-{lame,opus,libvorbis,flac,speex,soxr,twolame,wavpack,ilbc} \
           mingw-w64-x86_64-{x264,x265,libvpx,libwebp,openjpeg2,xvidcore} \
@@ -51,7 +50,7 @@ jobs:
           mingw-w64-x86_64-{libxml2,libmodplug,game-music-emu,openmpt} \
           mingw-w64-x86_64-{rubberband,vidstab,zimg,caca,bluray,ndi-headers} \
           mingw-w64-x86_64-{nvcodec-headers,vulkan-headers,vulkan-loader,amf-headers} \
-          mingw-w64-x86_64-{libmfx,libvpl}  # Intel QSV/VPL
+          mingw-w64-x86_64-{libmfx,libvpl} 
     
     - name: Install Rust for rav1e
       shell: msys2 {0}
@@ -98,17 +97,11 @@ jobs:
         mkdir -p /opt/sdks
         cd /opt/sdks
         
-        # 重要提示：以下SDK需要用户自行准备
-        # 1. Decklink SDK: 从Blackmagic官网下载
-        # 2. NDI SDK: 从NewTek官网下载
-        # 3. Intel IPP: 从Intel官网下载（部分功能已废弃）
-        
         echo "=== 商业SDK准备说明 ==="
         echo "将SDK解压到/opt/sdks/目录下，例如："
         echo "- Decklink: /opt/sdks/DecklinkSDK"
         echo "- NDI: /opt/sdks/NDI SDK"
         
-        # 创建占位目录（实际使用时需通过GitHub Secrets或手动上传）
         mkdir -p /opt/sdks/{decklink,ndi,ipp}
     
     - name: Checkout this fork
@@ -122,7 +115,6 @@ jobs:
       run: |
         cd ffmpeg-src
         
-        # 基础配置（开源完整版）
         CONFIG_OPTS="
           --prefix=/mingw64/ffmpeg-ultimate
           --arch=x86_64 --target-os=mingw32
@@ -133,55 +125,45 @@ jobs:
           --enable-runtime-cpudetect --enable-hardcoded-tables --enable-pic
           --enable-avisynth --enable-bzlib --enable-iconv --enable-lzma --enable-zlib
           
-          # 音频编解码器
           --enable-libmp3lame --enable-libopus --enable-libvorbis --enable-libfdk-aac
           --enable-libsoxr --enable-libspeex --enable-libtwolame --enable-libwavpack
           --enable-libilbc --enable-libgme --enable-libmodplug --enable-libopenmpt
           --enable-libopencore-amrnb --enable-libopencore-amrwb --enable-libvo-amrwbenc
           
-          # 视频编解码器
           --enable-libx264 --enable-libx265 --enable-libxvid --enable-libvpx
           --enable-libwebp --enable-libopenjpeg --enable-libdav1d
           
-          # 字体和字幕
           --enable-libfreetype --enable-libfontconfig --enable-libfribidi
           --enable-libharfbuzz --enable-libass
           
-          # 滤镜和特效
           --enable-filters --enable-avresample --enable-swresample --enable-postproc
           --enable-librubberband --enable-libvidstab --enable-libzimg
           --enable-libbs2b --enable-libcaca --enable-libzvbi
           
-          # 格式支持
           --enable-libbluray --enable-libxml2 --enable-libssh --enable-libsrt
           --enable-librtmp --enable-openssl --enable-gnutls
           
-          # 硬件加速 - 全GPU支持
           --enable-dxva2 --enable-d3d11va --enable-cuda --enable-cuda-llvm
           --enable-cuvid --enable-nvenc --enable-nvdec --enable-vulkan
           --enable-libmfx --enable-libvpl  # Intel QSV/VPL
           --enable-amf --enable-opencl     # AMD AMF / OpenCL
           
-          # 优化选项
           --enable-asm --enable-inline-asm --enable-x86asm
           --extra-cflags='-I/mingw64/include -O3 -mtune=native'
           --extra-ldflags='-L/mingw64/lib -static-libgcc'
           --pkg-config-flags='--static'
         "
         
-        # 根据构建类型添加商业功能
         if [ "${{ github.event.inputs.build_type }}" = "ultimate" ]; then
-          # 注意：以下选项需要对应的SDK存在，否则会配置失败
           COMMERCIAL_OPTS="
-            --enable-decklink  # 需要Blackmagic Decklink SDK
-            --enable-libndi_newtek  # 需要NDI SDK
-            --enable-libismv  # Microsoft Smooth Streaming (开源)
+            --enable-decklink 
+            --enable-libndi_newtek 
+            --enable-libismv 
           "
           CONFIG_OPTS="$CONFIG_OPTS $COMMERCIAL_OPTS"
           echo "警告：商业功能已启用，需确保SDK已正确放置"
         fi
         
-        # 执行配置
         echo "配置选项：$CONFIG_OPTS"
         ./configure $CONFIG_OPTS || {
           echo "=== 配置失败分析 ==="
@@ -193,11 +175,10 @@ jobs:
       shell: msys2 {0}
       run: |
         cd ffmpeg-src
-        # 使用ccache加速编译
         export CC="ccache gcc"
         export CXX="ccache g++"
         make -j$(nproc) 2>&1 | tee build.log
-        ccache -s  # 显示缓存统计
+        ccache -s 
         make install
     
     - name: Verify ultimate build
@@ -220,7 +201,6 @@ jobs:
       shell: msys2 {0}
       run: |
         cd /mingw64/ffmpeg-ultimate
-        # 包含所有必要DLL
         ldd bin/ffmpeg.exe | grep '/mingw64/bin' | awk '{print $3}' | xargs -I{} cp {} bin/
         7z a -mx9 ffmpeg-ultimate-${{ github.event.inputs.ffmpeg_version }}-${{ github.event.inputs.build_type }}.7z *
     

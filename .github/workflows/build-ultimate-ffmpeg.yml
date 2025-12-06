@@ -36,7 +36,7 @@ jobs:
         install: |
           base-devel git cmake meson nasm yasm pkg-config
           mingw-w64-x86_64-toolchain mingw-w64-x86_64-cmake mingw-w64-x86_64-meson
-          mingw-w64-x86_64-ccache  # 添加编译缓存
+          mingw-w64-x86_64-ccache
     
     - name: Install prebuilt dependencies (Core)
       shell: msys2 {0}

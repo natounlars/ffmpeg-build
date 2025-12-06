@@ -1,0 +1,232 @@
+# 给workflow写权限，否则无法上传artifacts
+permissions:
+  contents: read
+  actions: write
+
+name: Build Ultimate FFmpeg for Windows
+
+on:
+  workflow_dispatch:
+
+env:
+  MSYSTEM: MINGW64
+  MSYS2_PATH_TYPE: inherit
+
+jobs:
+  build-ultimate:
+    runs-on: windows-latest
+    timeout-minutes: 240  # 包含商业功能编译需要更长时间
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+    
+    # 设置缓存，大幅缩短后续构建时间
+    - name: Setup ccache
+      uses: hendrikmuhs/ccache-action@v1.2
+      with:
+        key: ffmpeg-${{ github.event.inputs.ffmpeg_version }}
+        max-size: 2G
+    
+    - name: Setup MSYS2 with full toolchain
+      uses: msys2/setup-msys2@v2
+      with:
+        msystem: MINGW64
+        update: true
+        install: |
+          base-devel git cmake meson nasm yasm pkg-config
+          mingw-w64-x86_64-toolchain mingw-w64-x86_64-cmake mingw-w64-x86_64-meson
+          mingw-w64-x86_64-ccache  # 添加编译缓存
+    
+    - name: Install prebuilt dependencies (Core)
+      shell: msys2 {0}
+      run: |
+        # 核心编解码器和工具（使用分组安装提升速度）
+        pacman -S --noconfirm --needed \
+          mingw-w64-x86_64-{lame,opus,libvorbis,flac,speex,soxr,twolame,wavpack,ilbc} \
+          mingw-w64-x86_64-{x264,x265,libvpx,libwebp,openjpeg2,xvidcore} \
+          mingw-w64-x86_64-{freetype,fontconfig,fribidi,harfbuzz,libass} \
+          mingw-w64-x86_64-{openssl,libssh,rtmpdump,libsrt,librist,gnutls} \
+          mingw-w64-x86_64-{zlib,bzip2,lz4,zstd,lzo2} \
+          mingw-w64-x86_64-{libxml2,libmodplug,game-music-emu,openmpt} \
+          mingw-w64-x86_64-{rubberband,vidstab,zimg,caca,bluray,ndi-headers} \
+          mingw-w64-x86_64-{nvcodec-headers,vulkan-headers,vulkan-loader,amf-headers} \
+          mingw-w64-x86_64-{libmfx,libvpl}  # Intel QSV/VPL
+    
+    - name: Install Rust for rav1e
+      shell: msys2 {0}
+      run: |
+        curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+        source ~/.cargo/env
+        rustup install stable
+    
+    - name: Build fdk-aac (High Quality AAC)
+      shell: msys2 {0}
+      run: |
+        git clone --depth 1 https://github.com/mstorsjo/fdk-aac.git
+        cd fdk-aac && ./autogen.sh
+        ./configure --prefix=/mingw64 --disable-shared --enable-static
+        make -j$(nproc) && make install
+    
+    - name: Build dav1d (Fast AV1 Decoder)
+      shell: msys2 {0}
+      run: |
+        git clone --depth 1 https://code.videolan.org/videolan/dav1d.git
+        cd dav1d && mkdir build && cd build
+        meson setup --buildtype release --default-library static --prefix=/mingw64 ..
+        ninja && ninja install
+    
+    - name: Build SVT-AV1 (Fast AV1 Encoder)
+      shell: msys2 {0}
+      run: |
+        git clone --depth 1 https://gitlab.com/AOMediaCodec/SVT-AV1.git
+        cd SVT-AV1 && mkdir build && cd build
+        cmake -G "MSYS Makefiles" -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF -DCMAKE_INSTALL_PREFIX=/mingw64 ..
+        make -j$(nproc) && make install
+    
+    - name: Build libmysofa (3D Audio Support)
+      shell: msys2 {0}
+      run: |
+        git clone --depth 1 https://github.com/hoene/libmysofa.git
+        cd libmysofa && mkdir build && cd build
+        cmake -G "MSYS Makefiles" -DBUILD_SHARED_LIBS=OFF -DCMAKE_INSTALL_PREFIX=/mingw64 ..
+        make -j$(nproc) && make install
+    
+    - name: Prepare commercial SDKs (Optional)
+      shell: msys2 {0}
+      run: |
+        mkdir -p /opt/sdks
+        cd /opt/sdks
+        
+        # 重要提示：以下SDK需要用户自行准备
+        # 1. Decklink SDK: 从Blackmagic官网下载
+        # 2. NDI SDK: 从NewTek官网下载
+        # 3. Intel IPP: 从Intel官网下载（部分功能已废弃）
+        
+        echo "=== 商业SDK准备说明 ==="
+        echo "将SDK解压到/opt/sdks/目录下，例如："
+        echo "- Decklink: /opt/sdks/DecklinkSDK"
+        echo "- NDI: /opt/sdks/NDI SDK"
+        
+        # 创建占位目录（实际使用时需通过GitHub Secrets或手动上传）
+        mkdir -p /opt/sdks/{decklink,ndi,ipp}
+    
+    - name: Checkout this fork
+      uses: actions/checkout@v4
+      with:
+         path: ffmpeg-src
+         fetch-depth: 1
+    
+    - name: Configure FFmpeg (Ultimate Full Version)
+      shell: msys2 {0}
+      run: |
+        cd ffmpeg-src
+        
+        # 基础配置（开源完整版）
+        CONFIG_OPTS="
+          --prefix=/mingw64/ffmpeg-ultimate
+          --arch=x86_64 --target-os=mingw32
+          --enable-static --enable-shared
+          --enable-gpl --enable-version3 --enable-nonfree
+          --enable-pthreads --enable-w32threads
+          --disable-doc --disable-ffplay
+          --enable-runtime-cpudetect --enable-hardcoded-tables --enable-pic
+          --enable-avisynth --enable-bzlib --enable-iconv --enable-lzma --enable-zlib
+          
+          # 音频编解码器
+          --enable-libmp3lame --enable-libopus --enable-libvorbis --enable-libfdk-aac
+          --enable-libsoxr --enable-libspeex --enable-libtwolame --enable-libwavpack
+          --enable-libilbc --enable-libgme --enable-libmodplug --enable-libopenmpt
+          --enable-libopencore-amrnb --enable-libopencore-amrwb --enable-libvo-amrwbenc
+          
+          # 视频编解码器
+          --enable-libx264 --enable-libx265 --enable-libxvid --enable-libvpx
+          --enable-libwebp --enable-libopenjpeg --enable-libdav1d
+          
+          # 字体和字幕
+          --enable-libfreetype --enable-libfontconfig --enable-libfribidi
+          --enable-libharfbuzz --enable-libass
+          
+          # 滤镜和特效
+          --enable-filters --enable-avresample --enable-swresample --enable-postproc
+          --enable-librubberband --enable-libvidstab --enable-libzimg
+          --enable-libbs2b --enable-libcaca --enable-libzvbi
+          
+          # 格式支持
+          --enable-libbluray --enable-libxml2 --enable-libssh --enable-libsrt
+          --enable-librtmp --enable-openssl --enable-gnutls
+          
+          # 硬件加速 - 全GPU支持
+          --enable-dxva2 --enable-d3d11va --enable-cuda --enable-cuda-llvm
+          --enable-cuvid --enable-nvenc --enable-nvdec --enable-vulkan
+          --enable-libmfx --enable-libvpl  # Intel QSV/VPL
+          --enable-amf --enable-opencl     # AMD AMF / OpenCL
+          
+          # 优化选项
+          --enable-asm --enable-inline-asm --enable-x86asm
+          --extra-cflags='-I/mingw64/include -O3 -mtune=native'
+          --extra-ldflags='-L/mingw64/lib -static-libgcc'
+          --pkg-config-flags='--static'
+        "
+        
+        # 根据构建类型添加商业功能
+        if [ "${{ github.event.inputs.build_type }}" = "ultimate" ]; then
+          # 注意：以下选项需要对应的SDK存在，否则会配置失败
+          COMMERCIAL_OPTS="
+            --enable-decklink  # 需要Blackmagic Decklink SDK
+            --enable-libndi_newtek  # 需要NDI SDK
+            --enable-libismv  # Microsoft Smooth Streaming (开源)
+          "
+          CONFIG_OPTS="$CONFIG_OPTS $COMMERCIAL_OPTS"
+          echo "警告：商业功能已启用，需确保SDK已正确放置"
+        fi
+        
+        # 执行配置
+        echo "配置选项：$CONFIG_OPTS"
+        ./configure $CONFIG_OPTS || {
+          echo "=== 配置失败分析 ==="
+          tail -n 50 ffbuild/config.log
+          exit 1
+        }
+    
+    - name: Build FFmpeg with ccache
+      shell: msys2 {0}
+      run: |
+        cd ffmpeg-src
+        # 使用ccache加速编译
+        export CC="ccache gcc"
+        export CXX="ccache g++"
+        make -j$(nproc) 2>&1 | tee build.log
+        ccache -s  # 显示缓存统计
+        make install
+    
+    - name: Verify ultimate build
+      shell: msys2 {0}
+      run: |
+        cd /mingw64/ffmpeg-ultimate/bin
+        echo "=== FFmpeg 构建配置 ==="
+        ./ffmpeg.exe -buildconf
+        
+        echo "=== 关键编解码器验证 ==="
+        ./ffmpeg.exe -codecs | grep -E "DEV|DEA" | grep -E "h264|hevc|av1|vp9|aac" | head -20
+        
+        echo "=== 硬件加速验证 ==="
+        ./ffmpeg.exe -hwaccels
+        
+        echo "=== 协议支持 ==="
+        ./ffmpeg.exe -protocols | grep -E "https|rtmp|srt"
+    
+    - name: Create portable archive
+      shell: msys2 {0}
+      run: |
+        cd /mingw64/ffmpeg-ultimate
+        # 包含所有必要DLL
+        ldd bin/ffmpeg.exe | grep '/mingw64/bin' | awk '{print $3}' | xargs -I{} cp {} bin/
+        7z a -mx9 ffmpeg-ultimate-${{ github.event.inputs.ffmpeg_version }}-${{ github.event.inputs.build_type }}.7z *
+    
+    - name: Upload ultimate artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: ffmpeg-ultimate-${{ github.event.inputs.ffmpeg_version }}
+        path: /mingw64/ffmpeg-ultimate/*.7z
+        retention-days: 90

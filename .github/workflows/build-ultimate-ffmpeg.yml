@@ -67,12 +67,12 @@ jobs:
       run: |
         # game-music-emu
         git clone --depth 1 https://github.com/libgme/game-music-emu.git
-        cd game-music-emu && cmake -B build -G "MSYS Makefiles" -DBUILD_SHARED_LIBS=OFF -DCMAKE_INSTALL_PREFIX=/mingw64
+        cd game-music-emu && cmake -B build -G "MSYS Makefiles" -DBUILD_SHARED_LIBS=OFF -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -DCMAKE_INSTALL_PREFIX=/mingw64
         cmake --build build --parallel $(nproc) && cmake --install build && cd ..
         
         # vid.stab
         git clone --depth 1 https://github.com/georgmartius/vid.stab.git
-        cd vid.stab && cmake -B build -G "MSYS Makefiles" -DBUILD_SHARED_LIBS=OFF -DCMAKE_INSTALL_PREFIX=/mingw64
+        cd vid.stab && cmake -B build -G "MSYS Makefiles" -DBUILD_SHARED_LIBS=OFF -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -DCMAKE_INSTALL_PREFIX=/mingw64
         cmake --build build --parallel $(nproc) && cmake --install build && cd ..
         
         # libcaca
@@ -108,7 +108,7 @@ jobs:
       run: |
         git clone --depth 1 https://gitlab.com/AOMediaCodec/SVT-AV1.git
         cd SVT-AV1 && mkdir build && cd build
-        cmake -G "MSYS Makefiles" -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF -DCMAKE_INSTALL_PREFIX=/mingw64 ..
+        cmake -G "MSYS Makefiles" -DCMAKE_BUILD_TYPE=Release -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -DBUILD_SHARED_LIBS=OFF -DCMAKE_INSTALL_PREFIX=/mingw64 ..
         make -j$(nproc) && make install
     
     - name: Build libmysofa (3D Audio Support)
@@ -116,7 +116,7 @@ jobs:
       run: |
         git clone --depth 1 https://github.com/hoene/libmysofa.git
         cd libmysofa && mkdir build && cd build
-        cmake -G "MSYS Makefiles" -DBUILD_SHARED_LIBS=OFF -DCMAKE_INSTALL_PREFIX=/mingw64 ..
+        cmake -G "MSYS Makefiles" -DBUILD_SHARED_LIBS=OFF -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -DCMAKE_INSTALL_PREFIX=/mingw64 ..
         make -j$(nproc) && make install
     
     - name: Prepare commercial SDKs (Optional)

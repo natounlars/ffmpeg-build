@@ -46,16 +46,41 @@ jobs:
         cd nv-codec-headers
         make PREFIX=/mingw64 install
 
-    
+    - name: Build soxr from source
+      shell: msys2 {0}
+      run: |
+        git clone --depth 1 https://github.com/chirlu/soxr.git
+        cd soxr
+        cmake -B build -G "MSYS Makefiles" \
+          -DBUILD_SHARED_LIBS=OFF \
+          -DCMAKE_INSTALL_PREFIX=/mingw64 \
+          -DWITH_OPENMP=OFF
+        cmake --build build --parallel $(nproc)
+        cmake --install build
+
+    - name: Build libsrt from source
+      shell: msys2 {0}
+      run: |
+        git clone --depth 1 https://github.com/Haivision/srt.git
+        cd srt
+        cmake -B build -G "MSYS Makefiles" \
+          -DBUILD_SHARED_LIBS=OFF \
+          -DCMAKE_INSTALL_PREFIX=/mingw64 \
+          -DENABLE_ENCRYPTION=ON \
+          -DENABLE_STATIC=ON
+        cmake --build build --parallel $(nproc)
+        cmake --install build
+
+        
     - name: Install prebuilt dependencies (Verified)
       shell: msys2 {0}
       run: |
         pacman -Syu --noconfirm
         pacman -S --noconfirm --needed \
-          mingw-w64-x86_64-{lame,opus,libvorbis,flac,speex,soxr,twolame,wavpack} \
+          mingw-w64-x86_64-{lame,opus,libvorbis,flac,speex,twolame,wavpack} \
           mingw-w64-x86_64-{x264,x265,libvpx,libwebp,openjpeg2,xvidcore} \
           mingw-w64-x86_64-{freetype,fontconfig,fribidi,harfbuzz,libass} \
-          mingw-w64-x86_64-{openssl,libssh,rtmpdump,libsrt,gnutls} \
+          mingw-w64-x86_64-{openssl,libssh,rtmpdump,gnutls} \
           mingw-w64-x86_64-{zlib,bzip2,lz4,zstd,lzo2} \
           mingw-w64-x86_64-{libxml2,libmodplug,rubberband,zimg,libbluray} \
           mingw-w64-x86_64-{vulkan-headers,vulkan-loader,amf-headers} \

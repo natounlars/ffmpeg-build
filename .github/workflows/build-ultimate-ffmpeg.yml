@@ -38,19 +38,38 @@ jobs:
           mingw-w64-x86_64-toolchain mingw-w64-x86_64-cmake mingw-w64-x86_64-meson
           mingw-w64-x86_64-ccache
     
-    - name: Install prebuilt dependencies (Core)
+    - name: Install prebuilt dependencies (Verified)
       shell: msys2 {0}
       run: |
+        # 核心依赖（确认存在）
         pacman -S --noconfirm --needed \
-          mingw-w64-x86_64-{lame,opus,libvorbis,flac,speex,soxr,twolame,wavpack,ilbc} \
+          mingw-w64-x86_64-{lame,opus,libvorbis,flac,speex,soxr,twolame,wavpack} \
           mingw-w64-x86_64-{x264,x265,libvpx,libwebp,openjpeg2,xvidcore} \
           mingw-w64-x86_64-{freetype,fontconfig,fribidi,harfbuzz,libass} \
-          mingw-w64-x86_64-{openssl,libssh,rtmpdump,libsrt,librist,gnutls} \
+          mingw-w64-x86_64-{openssl,libssh,rtmpdump,libsrt,gnutls} \
           mingw-w64-x86_64-{zlib,bzip2,lz4,zstd,lzo2} \
-          mingw-w64-x86_64-{libxml2,libmodplug,game-music-emu,openmpt} \
-          mingw-w64-x86_64-{rubberband,vidstab,zimg,caca,bluray,ndi-headers} \
-          mingw-w64-x86_64-{nvcodec-headers,vulkan-headers,vulkan-loader,amf-headers} \
-          mingw-w64-x86_64-{libmfx,libvpl} 
+          mingw-w64-x86_64-{libxml2,libmodplug,rubberband,zimg,libbluray} \
+          mingw-w64-x86_64-{vulkan-headers,vulkan-loader,amf-headers} \
+          mingw-w64-x86_64-{libmfx,libvpl,sdl2} \
+          mingw-w64-x86_64-nvcodec-headers  # 修正包名
+    
+    - name: Build missing libraries
+      shell: msys2 {0}
+      run: |
+        # game-music-emu
+        git clone --depth 1 https://github.com/libgme/game-music-emu.git
+        cd game-music-emu && cmake -B build -G "MSYS Makefiles" -DBUILD_SHARED_LIBS=OFF -DCMAKE_INSTALL_PREFIX=/mingw64
+        cmake --build build --parallel $(nproc) && cmake --install build && cd ..
+        
+        # vid.stab
+        git clone --depth 1 https://github.com/georgmartius/vid.stab.git
+        cd vid.stab && cmake -B build -G "MSYS Makefiles" -DBUILD_SHARED_LIBS=OFF -DCMAKE_INSTALL_PREFIX=/mingw64
+        cmake --build build --parallel $(nproc) && cmake --install build && cd ..
+        
+        # libcaca
+        git clone --depth 1 https://github.com/cacalabs/libcaca.git
+        cd libcaca && ./bootstrap && ./configure --prefix=/mingw64 --disable-shared --disable-doc
+        make -j$(nproc) && make install && cd ..
     
     - name: Install Rust for rav1e
       shell: msys2 {0}

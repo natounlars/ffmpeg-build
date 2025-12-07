@@ -41,7 +41,6 @@ jobs:
     - name: Install prebuilt dependencies (Verified)
       shell: msys2 {0}
       run: |
-        # 核心依赖（确认存在）
         pacman -S --noconfirm --needed \
           mingw-w64-x86_64-{lame,opus,libvorbis,flac,speex,soxr,twolame,wavpack} \
           mingw-w64-x86_64-{x264,x265,libvpx,libwebp,openjpeg2,xvidcore} \
@@ -51,7 +50,7 @@ jobs:
           mingw-w64-x86_64-{libxml2,libmodplug,rubberband,zimg,libbluray} \
           mingw-w64-x86_64-{vulkan-headers,vulkan-loader,amf-headers} \
           mingw-w64-x86_64-{libmfx,libvpl,sdl2} \
-          mingw-w64-x86_64-nvcodec-headers  # 修正包名
+          mingw-w64-x86_64-nvcodec-headers 
     
     - name: Build missing libraries
       shell: msys2 {0}

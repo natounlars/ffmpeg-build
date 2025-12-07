@@ -77,7 +77,7 @@ jobs:
         
         # libcaca
         git clone --depth 1 https://github.com/cacalabs/libcaca.git
-        cd libcaca && ./bootstrap && ./configure --prefix=/mingw64 --disable-shared --disable-doc
+        cd libcaca && ./bootstrap && ./configure --prefix=/mingw64 --disable-shared --disable-doc --disable-ncurses
         make -j$(nproc) && make install && cd ..
     
     - name: Install Rust for rav1e

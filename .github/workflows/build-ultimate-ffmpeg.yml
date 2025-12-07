@@ -52,6 +52,7 @@ jobs:
         git clone --depth 1 https://github.com/chirlu/soxr.git
         cd soxr
         cmake -B build -G "MSYS Makefiles" \
+          -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
           -DBUILD_SHARED_LIBS=OFF \
           -DCMAKE_INSTALL_PREFIX=/mingw64 \
           -DWITH_OPENMP=OFF
@@ -64,6 +65,7 @@ jobs:
         git clone --depth 1 https://github.com/Haivision/srt.git
         cd srt
         cmake -B build -G "MSYS Makefiles" \
+          -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
           -DBUILD_SHARED_LIBS=OFF \
           -DCMAKE_INSTALL_PREFIX=/mingw64 \
           -DENABLE_ENCRYPTION=ON \

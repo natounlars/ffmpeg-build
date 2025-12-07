@@ -45,34 +45,6 @@ jobs:
         git clone --depth 1 https://github.com/ffmpeg/nv-codec-headers.git
         cd nv-codec-headers
         make PREFIX=/mingw64 install
-
-    - name: Build soxr from source
-      shell: msys2 {0}
-      run: |
-        git clone --depth 1 https://github.com/chirlu/soxr.git
-        cd soxr
-        cmake -B build -G "MSYS Makefiles" \
-          -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
-          -DBUILD_SHARED_LIBS=OFF \
-          -DCMAKE_INSTALL_PREFIX=/mingw64 \
-          -DWITH_OPENMP=OFF
-        cmake --build build --parallel $(nproc)
-        cmake --install build
-
-    - name: Build libsrt from source
-      shell: msys2 {0}
-      run: |
-        git clone --depth 1 https://github.com/Haivision/srt.git
-        cd srt
-        cmake -B build -G "MSYS Makefiles" \
-          -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
-          -DBUILD_SHARED_LIBS=OFF \
-          -DCMAKE_INSTALL_PREFIX=/mingw64 \
-          -DENABLE_ENCRYPTION=ON \
-          -DENABLE_STATIC=ON
-        cmake --build build --parallel $(nproc)
-        cmake --install build
-
         
     - name: Install prebuilt dependencies (Verified)
       shell: msys2 {0}
@@ -86,7 +58,9 @@ jobs:
           mingw-w64-x86_64-{zlib,bzip2,lz4,zstd,lzo2} \
           mingw-w64-x86_64-{libxml2,libmodplug,rubberband,zimg,libbluray} \
           mingw-w64-x86_64-{vulkan-headers,vulkan-loader,amf-headers} \
-          mingw-w64-x86_64-{libmfx,libvpl,SDL2}
+          mingw-w64-x86_64-{libmfx,libvpl,SDL2} \
+          mingw-w64-x86_64-libsoxr \
+          mingw-w64-x86_64-srt
     
     - name: Build missing libraries
       shell: msys2 {0}

@@ -37,6 +37,15 @@ jobs:
           base-devel git cmake meson nasm yasm pkg-config
           mingw-w64-x86_64-toolchain mingw-w64-x86_64-cmake mingw-w64-x86_64-meson
           mingw-w64-x86_64-ccache
+
+          
+    - name: Build and install nv-codec-headers
+      shell: msys2 {0}
+      run: |
+        git clone --depth 1 https://github.com/ffmpeg/nv-codec-headers.git
+        cd nv-codec-headers
+        make PREFIX=/mingw64 install
+
     
     - name: Install prebuilt dependencies (Verified)
       shell: msys2 {0}
@@ -50,8 +59,7 @@ jobs:
           mingw-w64-x86_64-{zlib,bzip2,lz4,zstd,lzo2} \
           mingw-w64-x86_64-{libxml2,libmodplug,rubberband,zimg,libbluray} \
           mingw-w64-x86_64-{vulkan-headers,vulkan-loader,amf-headers} \
-          mingw-w64-x86_64-{libmfx,libvpl,SDL2} \
-          mingw-w64-x86_64-nvidia-codec-headers 
+          mingw-w64-x86_64-{libmfx,libvpl,SDL2}
     
     - name: Build missing libraries
       shell: msys2 {0}
